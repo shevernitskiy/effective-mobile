@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: effective_mobile_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-user_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-user_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: effective_mobile_app
+    restart: always
+    profiles: ["prod"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_NAME=${DB_NAME:-user_db}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@db:5432/${DB_NAME:-user_db}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXP=${JWT_ACCESS_EXP:-15m}
+      - JWT_REFRESH_EXP=${JWT_REFRESH_EXP:-7d}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
